@@ -66,7 +66,8 @@ function handleRequest(res, q, type, outFormat, speakText) {
         img: img,
         mml: mml,
         speakText: speakText,
-        png: png }, function (data) {
+        png: png,
+        dpi: 300}, function (data) {
             if (data.errors) {
                 data.success = false;
                 data.log = "Error:" + JSON.stringify(data.errors);
