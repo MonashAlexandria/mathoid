@@ -3,6 +3,7 @@
 
 var sUtil = require('../lib/util');
 var texvcjs = require('texvcjs');
+var utf8 = require('utf8');
 var HTTPError = sUtil.HTTPError;
 
 
@@ -40,6 +41,7 @@ function handleRequest(res, q, type, outFormat, speakText) {
     var img = false;
     //Keep format variables constant
     if (type === "TeX" || type === "inline-TeX") {
+        q = utf8.decode(q);
         var sanitizationOutput = texvcjs.check(q);
         // XXX properly handle errors here!
         if (sanitizationOutput.status === '+') {
