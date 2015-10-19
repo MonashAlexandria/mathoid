@@ -50,8 +50,6 @@ function handleRequest(res, q, type, outFormat, speakText) {
         if (sanitizationOutput.status !== '+') {
             res.set('Warning', sanitizationOutput.status + ' - ' + sanitizationOutput.details);
         }
-        sanitizedTex = sanitizationOutput.output || '';
-        q = sanitizedTex;
     }
     mml = outFormat === "mml" || outFormat === "json";
     png = app.conf.png && (outFormat === "png" || outFormat === "json");
