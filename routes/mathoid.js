@@ -42,6 +42,11 @@ function handleRequest(res, q, type, outFormat, speakText) {
     if (type === "TeX" || type === "inline-TeX") {
         var sanitizationOutput = texvcjs.check(q);
         // XXX properly handle errors here!
+        /**
+         * 19/10/2015 - Ian Heggaton
+         * Removed functionality to reject failed texvcjs checks. The system now ignores them but
+         * returns them as a HTTP Warning.
+         */
         if (sanitizationOutput.status !== '+') {
             res.set('Warning', sanitizationOutput.status + ' - ' + sanitizationOutput.details);
         }
@@ -58,6 +63,10 @@ function handleRequest(res, q, type, outFormat, speakText) {
     if (speakText && outFormat === "png") {
         speakText = false;
     }
+    /**
+     * 02/10/2015 - Ian Heggaton
+     * Set DPI of SVG files to 350 in the config object
+     */
     app.mjAPI.typeset({
         math: q,
         format: type,
