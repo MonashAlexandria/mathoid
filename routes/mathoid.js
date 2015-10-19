@@ -42,12 +42,11 @@ function handleRequest(res, q, type, outFormat, speakText) {
     if (type === "TeX" || type === "inline-TeX") {
         var sanitizationOutput = texvcjs.check(q);
         // XXX properly handle errors here!
-        if (sanitizationOutput.status === '+') {
-            sanitizedTex = sanitizationOutput.output || '';
-            q = sanitizedTex;
-        } else {
-            emitError(sanitizationOutput.status + ': ' + sanitizationOutput.details);
+        if (sanitizationOutput.status !== '+') {
+            res.set('Warning', sanitizationOutput.status + ' - ' + sanitizationOutput.details);
         }
+        sanitizedTex = sanitizationOutput.output || '';
+        q = sanitizedTex;
     }
     mml = outFormat === "mml" || outFormat === "json";
     png = app.conf.png && (outFormat === "png" || outFormat === "json");
