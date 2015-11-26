@@ -51,4 +51,4 @@ services:
       svg: true
       img: true
       png: true #new feature
-      speakText: true #new feature
+      #speakText: true #new feature
