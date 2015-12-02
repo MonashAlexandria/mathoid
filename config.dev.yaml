@@ -1,7 +1,9 @@
 # Number of worker processes to spawn.
 # Set to 0 to run everything in a single process without clustering.
 # Use 'ncpu' to run as many workers as there are CPU units
-num_workers: ncpu
+# UPDATE: using 2 workers, so that we can still check the health of the instance via /_info,
+#         while we are processing a request (e.g. for svg or png), even on a single core instance.
+num_workers: 2
 
 # Log error messages and gracefully restart a worker if v8 reports that it
 # uses more heap (note: not RSS) than this many mb.
