@@ -63,11 +63,6 @@ The first part of the configuration involves keeping your source repository's
 Depending on the exact machine on which your service will be deployed, you may
 need to set `target` to either `ubuntu` or `debian`.
 
-If you want to specify a version of Node.JS, different from the official distribution
-package, set the value of the `node` stanza to the desired version, following
-[nvm](https://github.com/creationix/nvm) versions naming.
-To explicitly force official distribution package, `"system"` version can be used.
-
 The important thing is keeping the `dependencies` field up to date at all times.
 There you should list all of the extra packages that are needed in order to
 build the npm module dependencies. The `_all` field denotes packages which
@@ -77,7 +72,6 @@ other, distribution-specific package lists, e.g.:
 ```javascript
 "deploy": {
   "target": "ubuntu",
-  "node": "system",
   "dependencies": {
     "ubuntu": ["pkg1", "pkg2"],
     "debian": ["pkgA", "pkgB"],
@@ -123,13 +117,6 @@ That will make the system look for the repository
 `mediawiki/services/name_in_gerrit` when checking it out in the deploy
 repository.
 
-The deploy-repo builder script assumes the name of the remote to check out in
-the deploy repository is `origin`. An alternative name can be configured by
-invoking (in the source repository):
-```
-git config deploy.remote deploy_repo_remote_name
-```
-
 ## Testing
 
 Before updating the deploy repository you need to make sure your configuration
@@ -145,14 +132,8 @@ everything works as expected (and commit those changes).
 
 ## Update
 
-The final step is updating the deploy repository. First. make sure that your
-source repository has got the latest dependencies installed:
-
-```
-rm -rf node_modules/ && npm install
-```
-
-Update the deploy repository by running from the source repository:
+The final step is updating the deploy repository. From the source repository
+run:
 
 ```
 ./server.js build --deploy-repo

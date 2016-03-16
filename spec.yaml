@@ -33,24 +33,6 @@ paths:
               spec: true
           response:
             status: 200
-    post:
-      tags:
-        - Render
-      description: Converts TeX to MathML, SVG, PNG and IMG
-      produces:
-        - application/json
-      x-amples:
-        - title: mass-energy equivalence (json)
-          request:
-            body:
-              q: 'E=mc^2'
-          response:
-            status: 200
-            body:
-              log: success
-              success: true
-              svg: /.+/
-              mml: /.+/
   # from routes/info.js
   /_info:
     get:
@@ -72,37 +54,34 @@ paths:
               version: /.+/
               home: /.+/
   # from routes/mathoid.js
-  /{format}/:
+  /:
     post:
       tags:
         - Render
-      description: Converts TeX to SVG, PNG or MathML depending on the parameter format. The special format 'texvcinfo' returns information about the input without to render anything.
+      description: Converts TeX to MathML, SVG, PNG and IMG
       produces:
-        - image/svg+xml
-        - application/mathml+xml
         - application/json
       x-amples:
-        - title: mass-energy equivalence (complete)
+        - title: mass-energy equivalence (json)
           request:
-            params:
-              format: complete
             body:
               q: 'E=mc^2'
           response:
             status: 200
-            headers:
-              content-type: /application\/json/
             body:
+              log: success
               success: true
-              svg:
-                headers:
-                  content-type: image/svg+xml
-                body: /.+/
-              mml:
-                headers:
-                  content-type: application/mathml+xml
-                  x-mathoid-style: /.+/
-                body: /.+/
+              svg: /.+/
+              mml: /.+/
+  /{format}/:
+    post:
+      tags:
+        - Render
+      description: Converts TeX to SVG, PNG or MathML depending on the parameter format
+      produces:
+        - image/svg+xml
+        - application/mathml+xml
+      x-amples:
         - title: mass-energy equivalence (svg)
           request:
             params:
@@ -125,35 +104,3 @@ paths:
             headers:
               content-type: /application\/mathml\+xml/
             body: /^\<math[\s\S]+math\>$/
-        - title: mass-energy equivalence (texvcinfo)
-          request:
-            params:
-              format: texvcinfo
-            body:
-              q: 'E = m c^2'
-          response:
-            status: 200
-            headers:
-              content-type: application/json
-            body:
-              success: true
-              checked: /E=mc/
-              identifiers: ["E", "m", "c"]
-        - title: Invaid command (texvcinfo)
-          request:
-            params:
-              format: texvcinfo
-            body:
-              q: 'a + \invalid = b'
-          response:
-            status: 400
-            headers:
-              content-type: application/json
-            body:
-              success: false
-              detail:
-                error:
-                  found: /invalid/
-                  location:
-                    start:
-                      column: 5

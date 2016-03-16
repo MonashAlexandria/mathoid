@@ -26,23 +26,16 @@ describe('express app', function() {
     });
 
     it('should set CORS headers', function() {
-        if(server.config.service.conf.cors === false) {
-            return true;
-        }
         return preq.get({
             uri: server.config.uri + 'robots.txt'
         }).then(function(res) {
             assert.deepEqual(res.status, 200);
             assert.deepEqual(res.headers['access-control-allow-origin'], '*');
-            assert.deepEqual(!!res.headers['access-control-allow-headers'], true);
-            assert.deepEqual(!!res.headers['access-control-expose-headers'], true);
+            assert.notDeepEqual(res.headers['access-control-allow-headers'], undefined);
         });
     });
 
     it('should set CSP headers', function() {
-        if(server.config.service.conf.csp === false) {
-            return true;
-        }
         return preq.get({
             uri: server.config.uri + 'robots.txt'
         }).then(function(res) {

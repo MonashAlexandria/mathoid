@@ -2,7 +2,7 @@
 
 
 var sUtil = require('../lib/util');
-var texvcInfo = require('texvcinfo');
+var texvcjs = require('texvcjs');
 var HTTPError = sUtil.HTTPError;
 
 
@@ -16,129 +16,102 @@ var router = sUtil.router();
  */
 var app;
 
-
-/* The response headers for different render types */
-var outHeaders = function(data) {
-    return {
-        svg: {
-            'content-type': 'image/svg+xml'
-        },
-        png: {
-            'content-type': 'image/png'
-        },
-        mml: {
-            'content-type': 'application/mathml+xml',
-            'x-mathoid-style': data.mathoidStyle
-        }
-    };
-};
-
-
-function emitError(txt, detail) {
-    if (detail === undefined) {
-        detail = txt;
-    }
+function emitError(txt) {
     throw new HTTPError({
         status: 400,
-        success: false,
         title: 'Bad Request',
         type: 'bad_request',
-        detail: detail,
-        error: txt
+        detail: txt,
+        error: txt,
+        success: false
     });
 }
 
 function emitFormatError(format) {
     emitError("Output format " + format + " is disabled via config, try setting \"" +
-        format + ": true\" to enable " + format + "rendering.");
+        format + ": true\" to enable "+ format + "rendering.");
 }
 
-function handleRequest(res, q, type, outFormat, features) {
-    var sanitizedTex, feedback;
-    var svg = app.conf.svg && /^svg|json|complete$/.test(outFormat);
-    var mml = (type !== "MathML") && /^mml|json|complete$/.test(outFormat);
-    var png = app.conf.png && /^png|json|complete$/.test(outFormat);
-    var info = app.conf.texvcinfo && /^graph|texvcinfo$/.test(outFormat);
-    var img = app.conf.img && /^mml|json|complete$/.test(outFormat);
-    var speech = (outFormat !== "png") && features.speech || outFormat === "speech";
-    var chem = type === "chem";
-
-    if (chem) {
-        type = "inline-TeX";
-    }
-    if ((!app.conf.no_check && /^TeX|inline-TeX$/.test(type)) || info) {
-        feedback = texvcInfo.feedback(q, {usemhchem: chem});
+function handleRequest(res, q, type, outFormat, speakText) {
+    var sanitizedTex;
+    var svg = false;
+    var mml = false;
+    var png = false;
+    var img = false;
+    //Keep format variables constant
+    if (type === "TeX" || type === "inline-TeX") {
+        var sanitizationOutput = texvcjs.check(q);
         // XXX properly handle errors here!
-        if (feedback.success) {
-            sanitizedTex = feedback.checked || '';
-            q = sanitizedTex;
-        } else {
-          /**
-           * 19/10/2015 - Ian Heggaton
-           * Removed functionality to reject failed texvcjs checks. The system now ignores them but
-           * returns them as a HTTP Warning.
-           */
-            res.set('Warning', feedback.error.name + ' - ' + feedback.error.message);
-        }
-        if (info) {
-            if (outFormat === "graph") {
-                res.json(texvcInfo.texvcinfo(q, {"format": "json", "compact": true}));
-                return;
-            }
-            if (info && outFormat === "texvcinfo") {
-                res.json(feedback).end();
-                return;
-            }
+        /**
+         * 19/10/2015 - Ian Heggaton
+         * Removed functionality to reject failed texvcjs checks. The system now ignores them but
+         * returns them as a HTTP Warning.
+         */
+        if (sanitizationOutput.status !== '+') {
+            res.set('Warning', sanitizationOutput.status + ' - ' + sanitizationOutput.details);
         }
     }
-
+    mml = outFormat === "mml" || outFormat === "json";
+    png = app.conf.png && (outFormat === "png" || outFormat === "json");
+    svg = app.conf.svg && (outFormat === "svg" || outFormat === "json");
+    img = app.conf.img && outFormat === "json";
+    if (type === "MathML") {
+        mml = false; // use the original MathML
+    }
+    if (speakText && outFormat === "png") {
+        speakText = false;
+    }
+    /**
+     * 02/10/2015 - Ian Heggaton
+     * Set DPI of SVG files to 350 in the config object
+     */
     app.mjAPI.typeset({
         math: q,
         format: type,
         svg: svg,
-        mathoidStyle: img,
+        img: img,
         mml: mml,
-        dpi: 350,
-        speakText: speech,
-        png: png
-    }, function (data) {
-        if (data.errors) {
-            data.success = false;
-            // @deprecated replace with emitError
-            data.log = "Error:" + JSON.stringify(data.errors);
-        } else {
-            data.success = true;
-            // @deprecated
-            data.log = "success";
-        }
+        speakText: speakText,
+        png: png,
+        dpi: 350 }, function (data) {
+            if (data.errors) {
+                data.success = false;
+                data.log = "Error:" + JSON.stringify(data.errors);
+            } else {
+                data.success = true;
+                data.log = "success";
+            }
 
-        // Return the sanitized TeX to the client
-        if (sanitizedTex !== undefined) {
-            data.sanetex = sanitizedTex;
-        }
-        if (speech) {
-            data.speech = data.speakText;
-        }
-        switch (outFormat) {
-            case 'json':
-                res.json(data).end();
-                break;
-            case 'complete':
-                var headers = outHeaders(data);
-                Object.keys(headers).forEach(function (outType) {
-                    if (data[outType]) {
-                        data[outType] = {
-                            headers: headers[outType],
-                            body: data[outType]
-                        };
-                    }
+            // Strip some styling returned by MathJax
+            if (data.svg) {
+                data.svg = data.svg.replace(/style="([^"]+)"/, function(match, style) {
+                    return 'style="'
+                        + style.replace(/(?:margin(?:-[a-z]+)?|position):[^;]+; */g, '')
+                        + '"';
                 });
-                res.json(data).end();
-                break;
-            default:
-                res.set(outHeaders(data)[outFormat]);
-                res.send(data[outFormat]).end();
-        }
+            }
+
+            // Return the sanitized TeX to the client
+            if (sanitizedTex !== undefined) {
+                data.sanetex = sanitizedTex;
+            }
+            switch (outFormat) {
+                case "json":
+                    res.json(data).end();
+                    break;
+                case "svg":
+                    res.type('image/svg+xml');
+                    res.send(data.svg).end();
+                    break;
+                case "png":
+                    res.type('image/png');
+                    res.send(data.png).end();
+                    break;
+                case "mml":
+                    res.type('application/mathml+xml');
+                    res.send(data.mml).end();
+                    break;
+            }
     });
 }
 
@@ -147,12 +120,12 @@ function handleRequest(res, q, type, outFormat, features) {
  * POST /
  * Performs the rendering request
  */
-router.post('/:outformat?/', function (req, res) {
+router.post('/:outformat?/', function(req, res) {
     var outFormat;
-    var speech = app.conf.speech_on;
+    var speakText = app.conf.speakText;
     // First some rudimentary input validation
     if (!(req.body.q)) {
-        emitError("q (query) post parameter is missing!");
+        emitError( "q (query) post parameter is missing!" );
     }
     var q = req.body.q;
     var type = (req.body.type || 'tex').toLowerCase();
@@ -172,23 +145,19 @@ router.post('/:outformat?/', function (req, res) {
         case "asciimath":
             type = "AsciiMath";
             break;
-        case "chem":
-            type = "chem";
-            break;
         default :
-            emitError("Input format \"" + type + "\" is not recognized!");
+            emitError("Input format \""+type+"\" is not recognized!");
     }
-    if (req.body.nospeech) {
-        speech = false;
+    if (req.body.noSpeak){
+        speakText = false;
     }
     function setOutFormat(fmt) {
-        if (app.conf[fmt] || (fmt === 'graph' && app.conf.texvcinfo)) {
+        if (app.conf[fmt]) {
             outFormat = fmt;
         } else {
             emitFormatError(fmt);
         }
     }
-
     if (req.params.outformat) {
         switch (req.params.outformat.toLowerCase()) {
             case "svg":
@@ -197,43 +166,28 @@ router.post('/:outformat?/', function (req, res) {
             case "png":
                 setOutFormat('png');
                 break;
-            case "texvcinfo":
-                setOutFormat('texvcinfo');
-                if (!/(chem|tex$)/i.test(type)) {
-                    emitError('texvcinfo accepts only tex, inline-tex, or chem as the input type, "' + type + '" given!');
-                }
-                break;
-            case "graph":
-                setOutFormat('graph');
-                if (!/tex$/i.test(type)) {
-                    emitError('graph accepts only tex or inline-tex as the input type, "' + type + '" given!');
-                }
-                break;
             case "json":
                 outFormat = "json";
-                break;
-            case 'complete':
-                outFormat = 'complete';
                 break;
             case "mml":
             case "mathml":
                 outFormat = "mml";
                 break;
-            case "speech":
-                setOutFormat('speech');
-                break;
             default:
-                emitError("Output format \"" + req.params.outformat + "\" is not recognized!");
+                throw new HTTPError({
+                    status: 400,
+                    error: "Output format \"" + req.params.outformat + "\" is not recognized!"
+                });
         }
     } else {
         outFormat = "json";
     }
-    handleRequest(res, q, type, outFormat, {speech: speech});
+    handleRequest(res, q, type, outFormat, speakText);
 
 });
 
 
-module.exports = function (appObj) {
+module.exports = function(appObj) {
 
     app = appObj;
 
@@ -244,3 +198,4 @@ module.exports = function (appObj) {
     };
 
 };
+
