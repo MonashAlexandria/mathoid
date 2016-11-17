@@ -4,6 +4,7 @@
 var sUtil = require('../lib/util');
 var texvcjs = require('texvcjs');
 var HTTPError = sUtil.HTTPError;
+var encodeUrl = require('encodeurl');
 
 
 /**
@@ -48,7 +49,7 @@ function handleRequest(res, q, type, outFormat, speakText) {
          * returns them as a HTTP Warning.
          */
         if (sanitizationOutput.status !== '+') {
-            res.set('Warning', sanitizationOutput.status + ' - ' + sanitizationOutput.details);
+            res.set('Warning', encodeUrl(sanitizationOutput.status + ' - ' + sanitizationOutput.details));
         }
     }
     mml = outFormat === "mml" || outFormat === "json";
