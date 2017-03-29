@@ -2,7 +2,7 @@
 
 
 var sUtil = require('../lib/util');
-var texvcjs = require('texvcjs');
+var texvcjs = require('mathoid-texvcjs');
 var HTTPError = sUtil.HTTPError;
 var encodeUrl = require('encodeurl');
 
